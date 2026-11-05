@@ -1,0 +1,40 @@
+{
+  "expo": {
+    "name": "tetris-temp",
+    "slug": "tetris-temp",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/Logo.jpeg",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/Logo.jpeg",
+      "resizeMode": "contain",
+      "backgroundColor": "#0b0f1a"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "package": "com.anonymous.tetristemp"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "react-native-google-mobile-ads",
+      "expo-font"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "bc2ab361-b5fe-4433-9112-7d0c28f4c744"
+      }
+    }
+  }
+}
