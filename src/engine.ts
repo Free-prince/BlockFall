@@ -10,9 +10,57 @@ export const SHAPES: number[][][] = [
   [[0,0,7],[7,7,7],[0,0,0]],
 ];
 export type Piece = { m: number[][]; x: number; y: number };
+
+// Stage system: fixed line goals per stage (replaces dynamic level calculation)
+export const STAGE_GOALS: number[] = [
+  10,  // Stage 1
+  20,  // Stage 2
+  30,  // Stage 3
+  40,  // Stage 4
+  50,  // Stage 5
+  60,  // Stage 6
+  70,  // Stage 7
+  80,  // Stage 8
+  90,  // Stage 9
+  100, // Stage 10
+];
+
+/**
+ * Returns the total lines required to complete the given stage (1-indexed).
+ * Stage 1 = 10 lines, Stage 2 = 20 lines, ..., Stage 10 = 100 lines.
+ */
+export function stageGoal(stage: number): number {
+  if (stage < 1) return STAGE_GOALS[0];
+  if (stage > STAGE_GOALS.length) return STAGE_GOALS[STAGE_GOALS.length - 1];
+  return STAGE_GOALS[stage - 1];
+}
+
+/**
+ * Returns the current stage based on total lines cleared.
+ * Stage increments only when the stage's line goal is reached.
+ */
+export function stageFromLines(lines: number): number {
+  for (let i = 0; i < STAGE_GOALS.length; i++) {
+    if (lines < STAGE_GOALS[i]) return i + 1;
+  }
+  return STAGE_GOALS.length; // Max stage
+}
+
+/**
+ * Returns the progress (0-1) within the current stage.
+ */
+export function stageProgress(lines: number): number {
+  const stage = stageFromLines(lines);
+  const prevGoal = stage > 1 ? STAGE_GOALS[stage - 2] : 0;
+  const currentGoal = STAGE_GOALS[stage - 1];
+  return Math.min(1, Math.max(0, (lines - prevGoal) / (currentGoal - prevGoal)));
+}
+
 export type State = {
   board: number[][]; cur: Piece; bag: number[]; next: number;
   score: number; lines: number; level: number; pieces: number;
+  stage: number;                    // Current stage (1-10)
+  stageComplete: boolean;           // Flag to show stage complete screen
   clears: number[]; over: boolean; start: number;
 };
 
@@ -37,7 +85,7 @@ export function init(): State {
   const t = bag.shift()!, n = bag.shift()!;
   return {
     board: Array.from({ length: H }, () => Array(W).fill(0)),
-    cur: make(t), bag, next: n, score: 0, lines: 0, level: 1, pieces: 1,
+    cur: make(t), bag, next: n, score: 0, lines: 0, level: 1, stage: 1, stageComplete: false, pieces: 1,
     clears: [0,0,0,0], over: false, start: Date.now(),
   };
 }
@@ -69,10 +117,15 @@ function lock(s: State): State {
   if (bag.length < 7) bag.push(...shuffle());
   const cur = make(s.next);
   const next = bag.shift()!;
+  const newStage = stageFromLines(lines);
+  const stageComplete = newStage > s.stage;
   return {
     ...s, board: rows, cur, next, bag, lines, clears,
     score: s.score + [0, 100, 300, 500, 800][n] * s.level,
-    level: Math.floor(lines / 10) + 1, pieces: s.pieces + 1,
+    level: newStage, // Use stage as level for backward compatibility
+    stage: newStage,
+    stageComplete,
+    pieces: s.pieces + 1,
     over: !fits(rows, cur.m, cur.x, cur.y),
   };
 }
