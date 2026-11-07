@@ -47,7 +47,9 @@
     "extra": {
       "eas": {
         "projectId": "e1f9b554-52bf-44b4-90a6-7f127ad5b1ff"
-      }
+      },
+      "EXPO_PUBLIC_SUPABASE_URL": "https://mowzjnfcjmcrzmovefqc.supabase.co",
+      "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1vd3pqbmZjam1jcnptb3ZlZnFjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM0NDUyNzksImV4cCI6MjEwOTAyMTI3OX0.gRaXzspoP8F6uUxLv0mM7x1-I-t7YCMsSk8G4WH-qEQ"
     },
     "owner": "theokoronkwo"
   }

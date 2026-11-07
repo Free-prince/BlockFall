@@ -44,6 +44,8 @@ export type HomeScreenProps = {
   onLeaderboard: () => void;
   onProfile: () => void;
   onComingSoon: (title: string) => void;
+  onSaveProgress: () => void;
+  isSignedIn: boolean;
 };
 
 const BLOCK_COLORS = ['#22d3ee', '#818cf8', '#a855f7', '#f59e0b', '#22c55e', '#f97316', '#ef4444'];
@@ -261,6 +263,8 @@ export default function HomeScreen({
   onLeaderboard,
   onProfile,
   onComingSoon,
+  onSaveProgress,
+  isSignedIn,
 }: HomeScreenProps) {
   const [profile, setProfile] = useState<{ name: string; bestScore: number } | null>(null);
   const [showComingSoon, setShowComingSoon] = useState<string | null>(null);
@@ -395,6 +399,19 @@ export default function HomeScreen({
             ))}
           </View>
         </View>
+
+        {/* Save Progress card (for guests) */}
+        {!isSignedIn && (
+          <Pressable style={styles.saveProgressCard} onPress={() => { playClick(); onSaveProgress(); }}>
+            <Ionicons name="cloud-upload-outline" size={28} color="#22d3ee" />
+            <View style={styles.saveProgressText}>
+              <Text style={styles.saveProgressTitle}>Save your progress</Text>
+              <Text style={styles.saveProgressDesc}>Create an account to sync scores across devices and compete globally</Text>
+            </View>
+            <Ionicons name="chevron-forward-outline" size={24} color="#64748b" />
+          </Pressable>
+        )}
+
       </View>
 
       {/* Bottom: Banner ad */}
@@ -510,6 +527,35 @@ const styles = StyleSheet.create({
   },
   iconColumn: {
     gap: 14,
+  },
+  saveProgressCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    maxWidth: 380,
+    backgroundColor: '#1e293b',
+    borderRadius: 16,
+    padding: 16,
+    marginTop: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(34, 211, 238, 0.3)',
+    gap: 12,
+  },
+  saveProgressText: {
+    flex: 1,
+  },
+  saveProgressTitle: {
+    color: '#22d3ee',
+    fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  saveProgressDesc: {
+    color: '#94a3b8',
+    fontSize: 13,
+    marginTop: 2,
+    lineHeight: 18,
   },
   iconButton: {
     alignItems: 'center',

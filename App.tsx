@@ -18,6 +18,7 @@ import Settings from './src/Settings';
 import Tutorial from './src/Tutorial';
 import HomeScreen from './src/screens/Home';
 import LoadingScreen, { loadFonts, loadProfile, checkClerkSession } from './src/screens/Loading';
+import AuthScreen from './src/screens/AuthScreen';
 import { State } from './src/engine';
 import { makeSupabase, submitScore, topScores, SubmitResult } from './src/api';
 import { posthogApiKey, posthogOptions } from './src/posthog';
@@ -27,7 +28,7 @@ import { initializeSound, startMusic, stopMusic, unloadSounds, setSfxEnabled, se
 import { getOrCreateProfile, setSoundEnabled as setProfileSoundEnabled, setMusicEnabled as setProfileMusicEnabled } from './src/profile';
 import { APP_VERSION } from './src/version';
 
-type Screen = 'loading' | 'home' | 'play' | 'over' | 'settings' | 'tutorial' | 'leaderboard' | 'profile';
+type Screen = 'loading' | 'home' | 'play' | 'over' | 'settings' | 'tutorial' | 'leaderboard' | 'profile' | 'auth';
 
 function Root() {
   const { getToken, signOut, isSignedIn, isLoaded: authLoaded } = useAuth();
@@ -41,6 +42,25 @@ function Root() {
   const [last, setLast] = useState<State | null>(null);
   const [result, setResult] = useState<SubmitResult | null>(null);
   const [profile, setProfile] = useState<{ name: string; bestScore: number; soundEnabled: boolean; musicEnabled: boolean } | null>(null);
+  const [showAuth, setShowAuth] = useState(false);
+  const [gameOverCount, setGameOverCount] = useState(0);
+  const [showSavePrompt, setShowSavePrompt] = useState(false);
+
+  const handleAuthComplete = async () => {
+    setShowAuth(false);
+    setScreen('home');
+    // After sign in, sync guest progress to cloud
+    try {
+      const { syncGuestProgress } = await import('./src/profile');
+      await syncGuestProgress(getToken);
+    } catch (e) {
+      console.warn('Failed to sync guest progress:', e);
+    }
+  };
+
+  const handleOpenAuth = () => {
+    setShowAuth(true);
+  };
 
   // Load profile and sync sound settings
   useEffect(() => {
@@ -127,6 +147,15 @@ function Root() {
       ph?.capture('score_submit_failed');
       gameLogger.scoreSubmissionFailed();
     }
+
+    // Track game overs for "Save your progress" prompt (guest only)
+    if (!isSignedIn) {
+      const newCount = gameOverCount + 1;
+      setGameOverCount(newCount);
+      if (newCount === 3) {
+        setShowSavePrompt(true);
+      }
+    }
   };
 
   const handleSignOut = async () => {
@@ -170,6 +199,13 @@ function Root() {
   const onLoadingDone = () => {
     setScreen('home');
   };
+
+  // Render auth screen
+  if (showAuth) {
+    return (
+      <AuthScreen onComplete={handleAuthComplete} onBack={() => setShowAuth(false)} />
+    );
+  }
 
   // Render loading screen
   if (screen === 'loading') {
@@ -261,7 +297,7 @@ function Root() {
           isSignedIn={isSignedIn}
           user={user}
           onBack={() => setScreen('home')}
-          onSignIn={() => setScreen('home')} // Navigate to home where auth can be initiated
+          onSignIn={handleOpenAuth}
         />
       </View>
     );
@@ -272,34 +308,62 @@ function Root() {
     <View style={styles.screenWrap}>
       {screen !== 'home' && <Header />}
       <View style={styles.center}>
-        {screen === 'over' && last ? (
-          <>
-            <Text style={styles.title}>GAME OVER</Text>
-            <Text style={styles.big}>{last.score}</Text>
-            <Text style={styles.sub}>{last.lines} lines · level {last.level}</Text>
-            {result?.rank != null && <Text style={styles.sub}>Global rank #{result.rank}</Text>}
-            {!!result?.similar.length && (
-              <>
-                <Text style={[styles.sub, { marginTop: 16 }]}>Players with a similar style</Text>
-                {result.similar.map((p, i) => <Text key={i} style={styles.row}>{p.name} · {p.score}</Text>)}
-              </>
-            )}
-          </>
+        {screen === 'home' ? (
+          <HomeScreen
+            onPlay={handlePlay}
+            onSettings={handleSettings}
+            onLeaderboard={handleLeaderboard}
+            onProfile={handleProfile}
+            onComingSoon={handleComingSoon}
+            onSaveProgress={handleOpenAuth}
+            isSignedIn={!!isSignedIn}
+          />
         ) : (
           <>
-            <Text style={styles.title}>BLOCKFALL</Text>
-            <Text style={styles.sub}>Hi {name} · your best {best}</Text>
-            <Text style={[styles.sub, { marginTop: 20 }]}>Leaderboard</Text>
-            {top.map((p, i) => <Text key={i} style={styles.row}>{i + 1}. {p.name} — {p.score}</Text>)}
+            {screen === 'over' && last ? (
+              <>
+                <Text style={styles.title}>GAME OVER</Text>
+                <Text style={styles.big}>{last.score}</Text>
+                <Text style={styles.sub}>{last.lines} lines · level {last.level}</Text>
+                {result?.rank != null && <Text style={styles.sub}>Global rank #{result.rank}</Text>}
+                {!!result?.similar.length && (
+                  <>
+                    <Text style={[styles.sub, { marginTop: 16 }]}>Players with a similar style</Text>
+                    {result.similar.map((p, i) => <Text key={i} style={styles.row}>{p.name} · {p.score}</Text>)}
+                  </>
+                )}
+              </>
+            ) : null}
+            <Pressable style={styles.cta} onPress={() => { playClick(); if (screen === 'over') handlePlayAgain(); else handlePlay(); }}>
+              <Text style={styles.ctaT}>{screen === 'over' ? 'Play again' : 'Play'}</Text>
+            </Pressable>
+            {screen === 'over' && <Pressable onPress={() => { playClick(); setScreen('home'); }}><Text style={styles.link}>Menu</Text></Pressable>}
+
+            {/* Save Progress Prompt (after 3rd game over for guests) */}
+            {showSavePrompt && !isSignedIn && (
+              <Pressable style={styles.sheetOverlay} onPress={() => setShowSavePrompt(false)}>
+                <Pressable style={styles.savePromptSheet} onPress={(e) => e.stopPropagation()}>
+                  <Ionicons name="cloud-upload-outline" size={36} color="#22d3ee" />
+                  <Text style={styles.savePromptTitle}>Save your progress</Text>
+                  <Text style={styles.savePromptDesc}>
+                    Create an account to sync your scores across devices and compete on the global leaderboard.
+                  </Text>
+                  <View style={styles.savePromptButtons}>
+                    <Pressable style={styles.savePromptSecondary} onPress={() => { playClick(); setShowSavePrompt(false); }}>
+                      <Text style={styles.savePromptSecondaryText}>Not now</Text>
+                    </Pressable>
+                    <Pressable style={styles.savePromptPrimary} onPress={() => { playClick(); setShowSavePrompt(false); setShowAuth(true); }}>
+                      <Text style={styles.savePromptPrimaryText}>Create Account</Text>
+                    </Pressable>
+                  </View>
+                </Pressable>
+              </Pressable>
+            )}
+
+            {/* Banner ad at bottom of game-over screen only (home screen has its own banner in HomeScreen) */}
+            {screen === 'over' && <Banner />}
           </>
         )}
-        <Pressable style={styles.cta} onPress={() => { playClick(); if (screen === 'over') handlePlayAgain(); else handlePlay(); }}>
-          <Text style={styles.ctaT}>{screen === 'over' ? 'Play again' : 'Play'}</Text>
-        </Pressable>
-        {screen === 'over' && <Pressable onPress={() => { playClick(); setScreen('home'); }}><Text style={styles.link}>Menu</Text></Pressable>}
-
-        {/* Banner ad at bottom of menu and game-over screens only */}
-        {(screen === 'home' || screen === 'over') && <Banner />}
       </View>
     </View>
   );
@@ -445,4 +509,67 @@ const styles = StyleSheet.create({
   profileDetails: { width: '100%', maxWidth: 360, marginTop: 20, backgroundColor: '#1e293b', borderRadius: 16, padding: 20, gap: 12 },
   profileDetailLabel: { color: '#64748b', fontSize: 11, letterSpacing: 1, fontWeight: '700' },
   profileDetailValue: { color: '#e2e8f0', fontSize: 14, fontFamily: 'monospace' },
+  sheetOverlay: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(11, 15, 26, 0.85)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  savePromptSheet: {
+    width: '100%',
+    maxWidth: 340,
+    backgroundColor: '#1e293b',
+    borderRadius: 20,
+    padding: 28,
+    alignItems: 'center',
+    gap: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(34, 211, 238, 0.3)',
+  },
+  savePromptTitle: {
+    color: '#22d3ee',
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: 1,
+    textAlign: 'center',
+  },
+  savePromptDesc: {
+    color: '#94a3b8',
+    fontSize: 15,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  savePromptButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+    marginTop: 8,
+  },
+  savePromptSecondary: {
+    flex: 1,
+    backgroundColor: 'transparent',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  savePromptSecondaryText: {
+    color: '#cbd5e1',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  savePromptPrimary: {
+    flex: 1,
+    backgroundColor: '#22d3ee',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  savePromptPrimaryText: {
+    color: '#0b0f1a',
+    fontSize: 16,
+    fontWeight: '800',
+  },
 });

@@ -54,11 +54,12 @@ Deno.serve(async (req) => {
         !int(b.seconds, 86400) || !Array.isArray(clears) || clears.length !== 4 || !clears.every((c) => int(c, 5000)))
       return json({ error: "invalid payload" }, 400);
     const name = String(b.name ?? "player").slice(0, 20);
+    const clientGameId = b.client_game_id ?? crypto.randomUUID();
 
     const { error } = await db.from("scores").insert({
       user_id: uid, name, score: b.score, lines: b.lines, level: b.level,
-      pieces: b.pieces, seconds: b.seconds, clears,
-    });
+      pieces: b.pieces, seconds: b.seconds, clears, client_game_id: clientGameId,
+    }).select();
     if (error) throw error;
 
     const [, , rank] = await redis([

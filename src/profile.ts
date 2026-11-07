@@ -1,5 +1,6 @@
 import * as Crypto from 'expo-crypto';
 import * as SecureStore from 'expo-secure-store';
+import { submitScore } from './api';
 
 const STORAGE_KEY = 'blockfall-profile';
 
@@ -162,4 +163,55 @@ export async function markGamesSynced(gameIds: string[]): Promise<void> {
 
 export async function clearProfile(): Promise<void> {
   await SecureStore.deleteItemAsync(STORAGE_KEY);
+}
+
+export async function syncGuestProgress(getToken: () => Promise<string | null>): Promise<{ synced: number; failed: number }> {
+  const profile = await getOrCreateProfile();
+  const unsyncedGames = profile.gameHistory.filter(g => !g.synced);
+
+  if (unsyncedGames.length === 0) {
+    return { synced: 0, failed: 0 };
+  }
+
+  let synced = 0;
+  let failed = 0;
+  const newlySyncedIds: string[] = [];
+
+  for (const game of unsyncedGames) {
+    try {
+      const token = await getToken();
+      if (!token) {
+        failed++;
+        continue;
+      }
+
+      const clientGameId = Crypto.randomUUID();
+      const result = await submitScore(token, {
+        name: profile.name,
+        score: game.score,
+        lines: game.lines,
+        level: game.level,
+        pieces: game.pieces,
+        seconds: game.seconds,
+        clears: game.clears,
+        client_game_id: clientGameId,
+      });
+
+      if (result.rank !== null || result.similar.length > 0) {
+        newlySyncedIds.push(game.id);
+        synced++;
+      } else {
+        failed++;
+      }
+    } catch (e) {
+      console.warn('Failed to sync game:', e);
+      failed++;
+    }
+  }
+
+  if (newlySyncedIds.length > 0) {
+    await markGamesSynced(newlySyncedIds);
+  }
+
+  return { synced, failed };
 }

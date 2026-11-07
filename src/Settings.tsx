@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, TextInput, Pressable, ScrollView, StyleSheet, ActivityIndicator, Alert, Platform, StatusBar, Switch } from 'react-native';
+import { View, Text, Pressable, ScrollView, StyleSheet, ActivityIndicator, Platform, StatusBar, Switch } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useUser, useAuth } from '@clerk/clerk-expo';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -23,9 +23,6 @@ export default function Settings({
 }: SettingsProps) {
   const { user } = useUser();
   const { signOut } = useAuth();
-  const [first, setFirst] = useState(user?.firstName ?? '');
-  const [last, setLast] = useState(user?.lastName ?? '');
-  const [saving, setSaving] = useState(false);
   const [rows, setRows] = useState<Row[] | null>(null);
   const [soundEnabled, setSoundEnabledState] = useState(true);
   const [musicEnabled, setMusicEnabledState] = useState(true);
@@ -61,18 +58,6 @@ export default function Settings({
     };
   }, [rows]);
 
-  const save = async () => {
-    if (!user) return;
-    setSaving(true);
-    try {
-      await user.update({ firstName: first.trim(), lastName: last.trim() });
-      Alert.alert('Saved', 'Your details were updated.');
-    } catch (e: any) {
-      Alert.alert('Could not save', e?.errors?.[0]?.message ?? 'Please try again.');
-    }
-    setSaving(false);
-  };
-
   const handleSoundToggle = (enabled: boolean) => {
     setSoundEnabledState(enabled);
     setSfxEnabled(enabled);
@@ -102,14 +87,14 @@ export default function Settings({
         <Text style={styles.sec}>ACCOUNT</Text>
         {user ? (
           <>
-            <Text style={styles.lbl}>Email</Text>
-            <Text style={styles.email}>{user?.primaryEmailAddress?.emailAddress}</Text>
-            <Text style={styles.lbl}>First name</Text>
-            <TextInput style={styles.input} value={first} onChangeText={setFirst} placeholder="First name" placeholderTextColor="#64748b" />
-            <Text style={styles.lbl}>Last name</Text>
-            <TextInput style={styles.input} value={last} onChangeText={setLast} placeholder="Last name" placeholderTextColor="#64748b" />
-            <Pressable style={styles.cta} onPress={() => { playClick(); save(); }} disabled={saving}>
-              <Text style={styles.ctaT}>{saving ? 'Saving…' : 'Save changes'}</Text>
+            <View style={styles.accountRow}>
+              <View style={styles.accountInfo}>
+                <Text style={styles.accountLabel}>Signed in as</Text>
+                <Text style={styles.accountValue}>{user?.primaryEmailAddress?.emailAddress}</Text>
+              </View>
+            </View>
+            <Pressable style={styles.signOutButton} onPress={() => { playClick(); signOut(); }}>
+              <Text style={styles.signOutButtonText}>Sign out</Text>
             </Pressable>
           </>
         ) : (
@@ -199,12 +184,6 @@ export default function Settings({
             </Pressable>
           </View>
         </View>
-
-        {user && (
-          <Pressable style={{ marginTop: 40, alignItems: 'center' }} onPress={() => { playClick(); signOut(); }}>
-            <Text style={{ color: '#f87171', fontSize: 16 }}>Sign out</Text>
-          </Pressable>
-        )}
       </ScrollView>
     </View>
   );
@@ -228,6 +207,12 @@ const styles = StyleSheet.create({
   bar: { flex: 1, backgroundColor: '#22d3ee', borderRadius: 4 },
   toggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, backgroundColor: '#1e293b', borderRadius: 12 },
   toggleLabel: { color: '#e2e8f0', fontSize: 16, fontWeight: '600' },
+  accountRow: { marginTop: 8 },
+  accountInfo: { backgroundColor: '#1e293b', borderRadius: 12, padding: 16 },
+  accountLabel: { color: '#94a3b8', fontSize: 12, letterSpacing: 1, fontWeight: '700', marginBottom: 4 },
+  accountValue: { color: '#e2e8f0', fontSize: 16, fontWeight: '600' },
+  signOutButton: { backgroundColor: '#f87171', paddingVertical: 14, borderRadius: 12, alignItems: 'center', marginTop: 12 },
+  signOutButtonText: { color: '#fff', fontSize: 16, fontWeight: '800' },
   guestCard: { backgroundColor: '#1e293b', borderRadius: 16, padding: 20, marginTop: 8, borderWidth: 1, borderColor: '#22d3ee30' },
   guestTitle: { color: '#22d3ee', fontSize: 18, fontWeight: '800', marginBottom: 8 },
   guestDesc: { color: '#94a3b8', fontSize: 14, lineHeight: 20, marginBottom: 16 },

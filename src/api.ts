@@ -12,6 +12,7 @@ export const makeSupabase = (getToken: () => Promise<string | null>) =>
 export type Payload = {
   name: string; score: number; lines: number; level: number;
   pieces: number; seconds: number; clears: number[];
+  client_game_id?: string;
 };
 export type SubmitResult = { rank: number | null; similar: { name: string; score: number }[] };
 

@@ -39,3 +39,4 @@ yarn-error.*
 /ios
 /android
 .env.local
+clerk-nextjs/
