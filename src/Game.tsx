@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, H, W, SHAPES, State, ghostY, hardDrop, init, move, rotate, tick } from './engine';
-import { playMove, playRotate, playSoftDrop, playHardDrop, playLineClear, playLevelUp, playGameOver, isSoundEnabled } from './sounds';
+import { playMove, playRotate, playSoftDrop, playHardDrop, playClear, playLevelUp, playGameOver, playClick, isSfxEnabled } from './sound';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -17,6 +17,7 @@ function Btn({ icon, onPress, repeat, big }: { icon: IconName; onPress: () => vo
     <Pressable
       style={({ pressed }) => [st.btn, big && st.btnBig, pressed && { backgroundColor: '#334155' }]}
       onPressIn={() => {
+        playClick();
         onPress();
         if (repeat) delay.current = setTimeout(() => { iv.current = setInterval(onPress, 70); }, 170);
       }}
@@ -51,10 +52,10 @@ export default function Game({
 
   // Sound triggers - detect line clears, level ups, game over
   useEffect(() => {
-    if (!isSoundEnabled()) return;
+    if (!isSfxEnabled()) return;
     if (s.lines > prevLinesRef.current) {
       const cleared = s.lines - prevLinesRef.current;
-      playLineClear(cleared);
+      playClear(cleared);
     }
     if (s.level > prevLevelRef.current) {
       playLevelUp();
@@ -104,17 +105,17 @@ export default function Game({
         let movedX = false;
         while (g.dx - a.x >= step) { a.x += step; a.moved = true; movedX = true; setS(p => move(p, 1)); }
         while (g.dx - a.x <= -step) { a.x -= step; a.moved = true; movedX = true; setS(p => move(p, -1)); }
-        if (movedX && isSoundEnabled()) playMove();
+        if (movedX && isSfxEnabled()) playMove();
         while (g.dy - a.y >= step) { a.y += step; a.moved = true; setS(p => tick(p, true)); }
       },
       onPanResponderRelease: (_, g) => {
         if (pausedRef.current || s.over) return;
         if (g.vy > HARD_DROP_VY && g.dy > HARD_DROP_DY) {
           setS(p => hardDrop(p));
-          if (isSoundEnabled()) playHardDrop();
+          if (isSfxEnabled()) playHardDrop();
         } else if (!a.moved && Math.abs(g.dx) < TAP_THRESHOLD && Math.abs(g.dy) < TAP_THRESHOLD) {
           setS(p => rotate(p));
-          if (isSoundEnabled()) playRotate();
+          if (isSfxEnabled()) playRotate();
         }
       },
       onPanResponderTerminate: () => {}, // Prevent other responders from taking over
@@ -135,19 +136,19 @@ export default function Game({
   // Sound-enabled action wrappers
   const doMove = (dir: -1 | 1) => {
     setS(p => move(p, dir));
-    if (isSoundEnabled()) playMove();
+    if (isSfxEnabled()) playMove();
   };
   const doRotate = () => {
     setS(p => rotate(p));
-    if (isSoundEnabled()) playRotate();
+    if (isSfxEnabled()) playRotate();
   };
   const doSoftDrop = () => {
     setS(p => tick(p, true));
-    if (isSoundEnabled()) playSoftDrop();
+    if (isSfxEnabled()) playSoftDrop();
   };
   const doHardDrop = () => {
     setS(p => hardDrop(p));
-    if (isSoundEnabled()) playHardDrop();
+    if (isSfxEnabled()) playHardDrop();
   };
 
   // draw board + ghost + current piece
@@ -167,7 +168,7 @@ export default function Game({
     <View style={st.wrap}>
       {/* TOP BAR */}
       <View style={st.top}>
-        <Pressable onPress={quit} hitSlop={10} style={st.iconBtn}><Ionicons name="close" size={24} color="#f87171" /></Pressable>
+        <Pressable onPress={() => { playClick(); quit(); }} hitSlop={10} style={st.iconBtn}><Ionicons name="close" size={24} color="#f87171" /></Pressable>
         <Stat label="SCORE" value={s.score} />
         <Stat label="LINES" value={s.lines} />
         <Stat label="LEVEL" value={s.level} />
@@ -179,8 +180,8 @@ export default function Game({
             </View>
           ))}
         </View>
-        <Pressable onPress={restart} hitSlop={10} style={st.iconBtn}><Ionicons name="refresh" size={22} color="#fff" /></Pressable>
-        <Pressable onPress={() => setPaused(p => !p)} hitSlop={10} style={st.iconBtn}>
+        <Pressable onPress={() => { playClick(); restart(); }} hitSlop={10} style={st.iconBtn}><Ionicons name="refresh" size={22} color="#fff" /></Pressable>
+        <Pressable onPress={() => { playClick(); setPaused(p => !p); }} hitSlop={10} style={st.iconBtn}>
           <Ionicons name={paused ? 'play' : 'pause'} size={22} color="#fff" />
         </Pressable>
       </View>
@@ -201,9 +202,9 @@ export default function Game({
           {paused && (
             <View style={st.overlay}>
               <Text style={st.paused}>PAUSED</Text>
-              <Pressable style={st.cta} onPress={() => setPaused(false)}><Text style={st.ctaT}>Resume</Text></Pressable>
-              <Pressable onPress={restart}><Text style={st.link}>Restart</Text></Pressable>
-              <Pressable onPress={quit}><Text style={[st.link, { color: '#f87171' }]}>Quit</Text></Pressable>
+              <Pressable style={st.cta} onPress={() => { playClick(); setPaused(false); }}><Text style={st.ctaT}>Resume</Text></Pressable>
+              <Pressable onPress={() => { playClick(); restart(); }}><Text style={st.link}>Restart</Text></Pressable>
+              <Pressable onPress={() => { playClick(); quit(); }}><Text style={[st.link, { color: '#f87171' }]}>Quit</Text></Pressable>
             </View>
           )}
         </View>
@@ -231,7 +232,7 @@ const st = StyleSheet.create({
   next: { width: 46, alignItems: 'center', justifyContent: 'center', minHeight: 40 },
   boardArea: { flex: 1, alignItems: 'center', justifyContent: 'center', marginVertical: 8 },
   board: { backgroundColor: '#10141f', borderWidth: 2, borderColor: '#334155', borderRadius: 6, overflow: 'hidden' },
-  overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: '#0b0f1ae8', alignItems: 'center', justifyContent: 'center', gap: 14 },
+  overlay: { ...StyleSheet.absoluteFill, backgroundColor: '#0b0f1ae8', alignItems: 'center', justifyContent: 'center', gap: 14 },
   paused: { color: '#fff', fontSize: 28, fontWeight: '900', letterSpacing: 3 },
   cta: { backgroundColor: '#22d3ee', paddingVertical: 12, paddingHorizontal: 36, borderRadius: 12 },
   ctaT: { color: '#0b0f1a', fontSize: 17, fontWeight: '800' },

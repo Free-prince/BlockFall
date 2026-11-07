@@ -2,10 +2,13 @@ import React from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView, Image, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
+// Ionicons name type
+type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
+
 const { width } = Dimensions.get('window');
 
 type Step = {
-  icon: string;
+  icon: IoniconsName;
   title: string;
   desc: string;
   color: string;

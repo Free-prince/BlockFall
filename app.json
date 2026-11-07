@@ -1,40 +1,54 @@
 {
   "expo": {
-    "name": "tetris-temp",
-    "slug": "tetris-temp",
+    "name": "BlockFall",
+    "slug": "blockfall",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/Logo.jpeg",
+    "icon": "./assets/Logo.png",
     "userInterfaceStyle": "light",
-    "splash": {
-      "image": "./assets/Logo.jpeg",
-      "resizeMode": "contain",
-      "backgroundColor": "#0b0f1a"
-    },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.blockfall.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "foregroundImage": "./assets/Logo.png",
+        "backgroundColor": "#0b0f1a"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.tetristemp"
+      "package": "com.blockfall.app"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "react-native-google-mobile-ads",
-      "expo-font"
+      "expo-font",
+      "expo-localization",
+      "expo-secure-store",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/Logo.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#0b0f1a"
+        }
+      ],
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-3470724405778707~1634124139"
+        }
+      ],
+      "expo-audio"
     ],
     "extra": {
       "eas": {
-        "projectId": "bc2ab361-b5fe-4433-9112-7d0c28f4c744"
+        "projectId": "e1f9b554-52bf-44b4-90a6-7f127ad5b1ff"
       }
-    }
+    },
+    "owner": "theokoronkwo"
   }
 }

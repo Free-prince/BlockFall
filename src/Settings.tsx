@@ -3,23 +3,50 @@ import { View, Text, TextInput, Pressable, ScrollView, StyleSheet, ActivityIndic
 import { Ionicons } from '@expo/vector-icons';
 import { useUser, useAuth } from '@clerk/clerk-expo';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { isSoundEnabled, setSoundEnabled } from './sounds';
+import { isSfxEnabled, isMusicEnabled, isVibrationEnabled, setSfxEnabled, setMusicEnabled, setVibrationEnabled, playClick } from './sound';
+import { APP_VERSION } from './version';
 
 type Row = { score: number; lines: number; level: number; clears: number[]; created_at: string };
 
-export default function Settings({ sb, onBack }: { sb: SupabaseClient; onBack: () => void }) {
+type SettingsProps = {
+  sb: SupabaseClient;
+  onBack: () => void;
+  profile: { name: string; bestScore: number; soundEnabled: boolean; musicEnabled: boolean } | null;
+  appVersion: string;
+};
+
+export default function Settings({
+  sb,
+  onBack,
+  profile,
+  appVersion,
+}: SettingsProps) {
   const { user } = useUser();
   const { signOut } = useAuth();
   const [first, setFirst] = useState(user?.firstName ?? '');
   const [last, setLast] = useState(user?.lastName ?? '');
   const [saving, setSaving] = useState(false);
   const [rows, setRows] = useState<Row[] | null>(null);
+  const [soundEnabled, setSoundEnabledState] = useState(true);
+  const [musicEnabled, setMusicEnabledState] = useState(true);
+  const [vibrationEnabled, setVibrationEnabledState] = useState(true);
 
   useEffect(() => {
     sb.from('scores').select('score,lines,level,clears,created_at')
       .order('created_at', { ascending: false }).limit(500)
       .then(({ data }) => setRows((data as Row[]) ?? []));
   }, []);
+
+  useEffect(() => {
+    if (profile) {
+      setSoundEnabledState(profile.soundEnabled);
+      setMusicEnabledState(profile.musicEnabled);
+    }
+    // Load from sound system (persisted in SecureStore)
+    setSoundEnabledState(isSfxEnabled());
+    setMusicEnabledState(isMusicEnabled());
+    setVibrationEnabledState(isVibrationEnabled());
+  }, [profile]);
 
   const stats = useMemo(() => {
     const r = rows ?? [];
@@ -46,55 +73,105 @@ export default function Settings({ sb, onBack }: { sb: SupabaseClient; onBack: (
     setSaving(false);
   };
 
+  const handleSoundToggle = (enabled: boolean) => {
+    setSoundEnabledState(enabled);
+    setSfxEnabled(enabled);
+  };
+
+  const handleMusicToggle = (enabled: boolean) => {
+    setMusicEnabledState(enabled);
+    setMusicEnabled(enabled);
+  };
+
+  const handleVibrationToggle = (enabled: boolean) => {
+    setVibrationEnabledState(enabled);
+    setVibrationEnabled(enabled);
+  };
+
   const maxRecent = Math.max(1, ...stats.recent.map(x => x.score));
 
   return (
-    <View style={st.wrap}>
-      <View style={st.head}>
-        <Pressable onPress={onBack} hitSlop={12}><Ionicons name="chevron-back" size={28} color="#fff" /></Pressable>
-        <Text style={st.title}>Settings</Text>
+    <View style={styles.wrap}>
+      <View style={styles.head}>
+        <Pressable onPress={() => { playClick(); onBack(); }} hitSlop={12}><Ionicons name="chevron-back" size={28} color="#fff" /></Pressable>
+        <Text style={styles.title}>Settings</Text>
         <View style={{ width: 28 }} />
       </View>
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 60 }}>
-        <Text style={st.sec}>YOUR DETAILS</Text>
-        <Text style={st.lbl}>Email</Text>
-        <Text style={st.email}>{user?.primaryEmailAddress?.emailAddress}</Text>
-        <Text style={st.lbl}>First name</Text>
-        <TextInput style={st.input} value={first} onChangeText={setFirst} placeholder="First name" placeholderTextColor="#64748b" />
-        <Text style={st.lbl}>Last name</Text>
-        <TextInput style={st.input} value={last} onChangeText={setLast} placeholder="Last name" placeholderTextColor="#64748b" />
-        <Pressable style={st.cta} onPress={save} disabled={saving}>
-          <Text style={st.ctaT}>{saving ? 'Saving…' : 'Save changes'}</Text>
-        </Pressable>
+        {/* Account Section */}
+        <Text style={styles.sec}>ACCOUNT</Text>
+        {user ? (
+          <>
+            <Text style={styles.lbl}>Email</Text>
+            <Text style={styles.email}>{user?.primaryEmailAddress?.emailAddress}</Text>
+            <Text style={styles.lbl}>First name</Text>
+            <TextInput style={styles.input} value={first} onChangeText={setFirst} placeholder="First name" placeholderTextColor="#64748b" />
+            <Text style={styles.lbl}>Last name</Text>
+            <TextInput style={styles.input} value={last} onChangeText={setLast} placeholder="Last name" placeholderTextColor="#64748b" />
+            <Pressable style={styles.cta} onPress={() => { playClick(); save(); }} disabled={saving}>
+              <Text style={styles.ctaT}>{saving ? 'Saving…' : 'Save changes'}</Text>
+            </Pressable>
+          </>
+        ) : (
+          <>
+            <View style={styles.guestCard}>
+              <Text style={styles.guestTitle}>Playing as Guest</Text>
+              <Text style={styles.guestDesc}>Your progress is saved locally on this device. Create an account to sync across devices and compete on the global leaderboard.</Text>
+              <Pressable style={styles.guestButton} onPress={() => { playClick(); }}>
+                <Text style={styles.guestButtonText}>Create Account</Text>
+              </Pressable>
+            </View>
+          </>
+        )}
 
-        <Text style={[st.sec, { marginTop: 32 }]}>SOUND</Text>
-        <View style={st.toggleRow}>
-          <Text style={st.toggleLabel}>Sound Effects & Music</Text>
+        {/* Sound Section */}
+        <Text style={[styles.sec, { marginTop: 32 }]}>SOUND</Text>
+        <View style={styles.toggleRow}>
+          <Text style={styles.toggleLabel}>Sound Effects</Text>
           <Switch
-            value={isSoundEnabled()}
-            onValueChange={setSoundEnabled}
+            value={soundEnabled}
+            onValueChange={handleSoundToggle}
+            thumbColor="#fff"
+            trackColor={{ false: '#334155', true: '#22d3ee' }}
+          />
+        </View>
+        <View style={styles.toggleRow}>
+          <Text style={styles.toggleLabel}>Music</Text>
+          <Switch
+            value={musicEnabled}
+            onValueChange={handleMusicToggle}
+            thumbColor="#fff"
+            trackColor={{ false: '#334155', true: '#22d3ee' }}
+          />
+        </View>
+        <View style={styles.toggleRow}>
+          <Text style={styles.toggleLabel}>Vibration</Text>
+          <Switch
+            value={vibrationEnabled}
+            onValueChange={handleVibrationToggle}
             thumbColor="#fff"
             trackColor={{ false: '#334155', true: '#22d3ee' }}
           />
         </View>
 
-        <Text style={[st.sec, { marginTop: 32 }]}>YOUR PROGRESS</Text>
+        {/* Progress Section */}
+        <Text style={[styles.sec, { marginTop: 32 }]}>YOUR PROGRESS</Text>
         {rows === null ? <ActivityIndicator color="#22d3ee" /> : (
           <>
-            <View style={st.grid}>
+            <View style={styles.grid}>
               {[
                 ['Games', stats.games], ['Best score', stats.best], ['Avg score', stats.avg],
                 ['Total lines', stats.lines], ['Highest level', stats.level], ['Tetrises', stats.tetrises],
               ].map(([k, v]) => (
-                <View key={k as string} style={st.card}><Text style={st.cardV}>{v}</Text><Text style={st.cardK}>{k}</Text></View>
+                <View key={k as string} style={styles.card}><Text style={styles.cardV}>{v}</Text><Text style={styles.cardK}>{k}</Text></View>
               ))}
             </View>
             {!!stats.recent.length && (
               <>
-                <Text style={[st.lbl, { marginTop: 20 }]}>Last {stats.recent.length} games</Text>
-                <View style={st.bars}>
+                <Text style={[styles.lbl, { marginTop: 20 }]}>Last {stats.recent.length} games</Text>
+                <View style={styles.bars}>
                   {stats.recent.map((x, i) => (
-                    <View key={i} style={[st.bar, { height: 8 + (x.score / maxRecent) * 80 }]} />
+                    <View key={i} style={[styles.bar, { height: 8 + (x.score / maxRecent) * 80 }]} />
                   ))}
                 </View>
               </>
@@ -102,15 +179,38 @@ export default function Settings({ sb, onBack }: { sb: SupabaseClient; onBack: (
           </>
         )}
 
-        <Pressable style={{ marginTop: 40, alignItems: 'center' }} onPress={() => signOut()}>
-          <Text style={{ color: '#f87171', fontSize: 16 }}>Sign out</Text>
-        </Pressable>
+        {/* About Section */}
+        <Text style={[styles.sec, { marginTop: 32 }]}>ABOUT</Text>
+        <View style={styles.aboutCard}>
+          <View style={styles.aboutRow}>
+            <Text style={styles.aboutLabel}>Version</Text>
+            <Text style={styles.aboutValue}>{appVersion}</Text>
+          </View>
+          <View style={styles.aboutRow}>
+            <Text style={styles.aboutLabel}>Privacy Policy</Text>
+            <Pressable onPress={() => { playClick(); }}>
+              <Text style={styles.aboutLink}>View</Text>
+            </Pressable>
+          </View>
+          <View style={styles.aboutRow}>
+            <Text style={styles.aboutLabel}>Terms of Service</Text>
+            <Pressable onPress={() => { playClick(); }}>
+              <Text style={styles.aboutLink}>View</Text>
+            </Pressable>
+          </View>
+        </View>
+
+        {user && (
+          <Pressable style={{ marginTop: 40, alignItems: 'center' }} onPress={() => { playClick(); signOut(); }}>
+            <Text style={{ color: '#f87171', fontSize: 16 }}>Sign out</Text>
+          </Pressable>
+        )}
       </ScrollView>
     </View>
   );
 }
 
-const st = StyleSheet.create({
+const styles = StyleSheet.create({
   wrap: { flex: 1, backgroundColor: '#0b0f1a', paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight ?? 24) + 6 : 54 },
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12 },
   title: { color: '#fff', fontSize: 20, fontWeight: '800' },
@@ -128,4 +228,14 @@ const st = StyleSheet.create({
   bar: { flex: 1, backgroundColor: '#22d3ee', borderRadius: 4 },
   toggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, backgroundColor: '#1e293b', borderRadius: 12 },
   toggleLabel: { color: '#e2e8f0', fontSize: 16, fontWeight: '600' },
+  guestCard: { backgroundColor: '#1e293b', borderRadius: 16, padding: 20, marginTop: 8, borderWidth: 1, borderColor: '#22d3ee30' },
+  guestTitle: { color: '#22d3ee', fontSize: 18, fontWeight: '800', marginBottom: 8 },
+  guestDesc: { color: '#94a3b8', fontSize: 14, lineHeight: 20, marginBottom: 16 },
+  guestButton: { backgroundColor: '#22d3ee', paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
+  guestButtonText: { color: '#0b0f1a', fontSize: 16, fontWeight: '800' },
+  aboutCard: { backgroundColor: '#1e293b', borderRadius: 16, padding: 16, marginTop: 8 },
+  aboutRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12 },
+  aboutLabel: { color: '#94a3b8', fontSize: 15 },
+  aboutValue: { color: '#fff', fontSize: 15, fontWeight: '600', fontFamily: 'monospace' },
+  aboutLink: { color: '#22d3ee', fontSize: 15, fontWeight: '600' },
 });
