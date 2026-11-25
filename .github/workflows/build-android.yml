@@ -37,7 +37,7 @@ jobs:
         run: npm install -g eas-cli@latest
 
       - name: Configure EAS
-        run: eas build:configure --platform android --non-interactive
+        run: eas build:configure --platform android --yes
 
       - name: Build APK (preview profile)
         run: eas build -p android --profile preview --non-interactive --no-wait
