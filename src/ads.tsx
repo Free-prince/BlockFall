@@ -1,81 +1,72 @@
-// AdMob helpers. Native module only exists in development/production builds, not Expo Go.
+// AdMob wrapper — returns no-op functions in Expo Go, loads native implementation in dev/production builds
 import React from 'react';
-import { Platform, View, NativeModules } from 'react-native';
 
-const pick = (android?: string, ios?: string) => Platform.select({ android, ios });
-const BANNER = pick(process.env.EXPO_PUBLIC_ADMOB_BANNER_ANDROID, process.env.EXPO_PUBLIC_ADMOB_BANNER_IOS);
-const INTER = pick(process.env.EXPO_PUBLIC_ADMOB_INTERSTITIAL_ANDROID, process.env.EXPO_PUBLIC_ADMOB_INTERSTITIAL_IOS);
+type AdsModule = {
+  initAds: () => Promise<void>;
+  maybeShowInterstitial: (every?: number) => Promise<void>;
+  Banner: React.FC;
+};
 
-// Only load ads if the native module exists (not available in Expo Go)
-const hasNativeAds = !!NativeModules.GoogleMobileAds;
+// No-op implementations for Expo Go
+const noopAds: AdsModule = {
+  initAds: async () => {},
+  maybeShowInterstitial: async () => {},
+  Banner: () => null,
+};
 
-let interstitial: any = null;
-let loaded = false;
-let count = 0;
+// Check if native GoogleMobileAds module exists
+const hasNativeAds = typeof global !== 'undefined' && !!global.NativeModules?.GoogleMobileAds;
 
-// Truly lazy getter using dynamic import - Metro cannot statically analyze this
-let _AdsPromise: Promise<any> | null = null;
-async function getAds() {
-  if (!hasNativeAds) return null;
+let _adsPromise: Promise<AdsModule> | null = null;
 
-  if (_AdsPromise === null) {
-    _AdsPromise = (async () => {
+async function loadNativeAds(): Promise<AdsModule> {
+  if (!hasNativeAds) return noopAds;
+
+  if (!_adsPromise) {
+    _adsPromise = (async () => {
       try {
-        // Dynamic import - only loads when actually called
-        const module = await import('react-native-google-mobile-ads');
-        return module.default || module;
+        // Dynamic import with variable path — Metro cannot statically analyze this
+        const nativePath = './ads.native';
+        const module = await import(nativePath);
+        return {
+          initAds: module.initAds,
+          maybeShowInterstitial: module.maybeShowInterstitial,
+          Banner: module.Banner,
+        };
       } catch {
-        return false;
+        return noopAds;
       }
     })();
   }
-  const Ads = await _AdsPromise;
-  return Ads || null;
+  return _adsPromise;
 }
 
+let _adsModule: AdsModule | null = null;
+
+export async function getAdsModule(): Promise<AdsModule> {
+  if (_adsModule) return _adsModule;
+  _adsModule = await loadNativeAds();
+  return _adsModule;
+}
+
+// Exported functions that delegate to the loaded module
 export async function initAds() {
-  const Ads = await getAds();
-  if (!Ads) return;
-  try {
-    await Ads.AdsConsent?.gatherConsent?.();
-  } catch {}
-  try {
-    await Ads.default().initialize();
-    const id = __DEV__ ? Ads.TestIds.INTERSTITIAL : INTER;
-    if (!id) return;
-    interstitial = Ads.InterstitialAd.createForAdRequest(id, { requestNonPersonalizedAdsOnly: true });
-    interstitial.addAdEventListener(Ads.AdEventType.LOADED, () => { loaded = true; });
-    interstitial.addAdEventListener(Ads.AdEventType.CLOSED, () => { loaded = false; interstitial.load(); });
-    interstitial.load();
-  } catch {}
+  const mod = await getAdsModule();
+  return mod.initAds();
 }
 
-/** Call between games (e.g. when the player taps "Play again"). Shows an ad every `every` calls. */
 export async function maybeShowInterstitial(every = 3) {
-  const Ads = await getAds();
-  if (!Ads) return;
-  count++;
-  if (count % every === 0 && loaded && interstitial) interstitial.show();
+  const mod = await getAdsModule();
+  return mod.maybeShowInterstitial(every);
 }
 
-/** Banner ad component - returns null in Expo Go (no native module) */
 export function Banner() {
-  const [Ads, setAds] = React.useState<any>(null);
+  const [mod, setMod] = React.useState<AdsModule | null>(null);
 
   React.useEffect(() => {
-    if (!hasNativeAds) return;
-    getAds().then(setAds);
+    getAdsModule().then(setMod);
   }, []);
 
-  if (!Ads) return null;
-
-  const unitId = __DEV__ ? Ads.TestIds.BANNER : BANNER;
-  if (!unitId) return null;
-
-  return (
-    <View style={{ alignItems: 'center' }}>
-      <Ads.BannerAd unitId={unitId} size={Ads.BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
-        requestOptions={{ requestNonPersonalizedAdsOnly: true }} />
-    </View>
-  );
+  if (!mod) return null;
+  return <mod.Banner />;
 }

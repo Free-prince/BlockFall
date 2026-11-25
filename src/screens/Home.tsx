@@ -11,10 +11,23 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Banner } from '../ads';
 import { getOrCreateProfile } from '../profile';
 import { APP_VERSION } from '../version';
 import { startMusic, stopMusic, playClick } from '../sound';
+
+// Banner ad — lazy loaded, returns null in Expo Go
+function useBanner() {
+  const [Banner, setBanner] = useState<React.FC | null>(null);
+  useEffect(() => {
+    const hasNativeAds = !!global.NativeModules?.GoogleMobileAds;
+    if (!hasNativeAds) {
+      setBanner(() => null);
+      return;
+    }
+    import('../ads').then((m) => setBanner(() => m.Banner)).catch(() => setBanner(() => null));
+  }, []);
+  return Banner;
+}
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -268,6 +281,7 @@ export default function HomeScreen({
 }: HomeScreenProps) {
   const [profile, setProfile] = useState<{ name: string; bestScore: number } | null>(null);
   const [showComingSoon, setShowComingSoon] = useState<string | null>(null);
+  const Banner = useBanner();
 
   // Load profile
   useEffect(() => {
@@ -415,9 +429,7 @@ export default function HomeScreen({
       </View>
 
       {/* Bottom: Banner ad */}
-      <View style={styles.bannerArea}>
-        <Banner />
-      </View>
+      {Banner && <View style={styles.bannerArea}><Banner /></View>}
 
       {/* Coming soon sheet */}
       {showComingSoon && (

@@ -42,7 +42,8 @@
           "androidAppId": "ca-app-pub-3470724405778707~1634124139"
         }
       ],
-      "expo-audio"
+      "expo-audio",
+      "expo-asset"
     ],
     "extra": {
       "eas": {

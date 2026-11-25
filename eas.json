@@ -3,6 +3,14 @@
     "version": ">= 5.0.0"
   },
   "build": {
+    "development": {
+      "android": {
+        "buildType": "apk",
+        "credentialsSource": "remote",
+        "developmentClient": true,
+        "distribution": "internal"
+      }
+    },
     "preview": {
       "android": {
         "buildType": "apk",
@@ -11,7 +19,7 @@
     },
     "production": {
       "android": {
-        "buildType": "app-bundle",
+        "buildType": "apk",
         "credentialsSource": "remote"
       }
     }

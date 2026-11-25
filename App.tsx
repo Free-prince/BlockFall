@@ -23,10 +23,54 @@ import { State } from './src/engine';
 import { makeSupabase, submitScore, topScores, SubmitResult } from './src/api';
 import { posthogApiKey, posthogOptions } from './src/posthog';
 import { createGameLogger } from './src/posthog-logger';
-import { initAds, Banner, maybeShowInterstitial } from './src/ads';
 import { initializeSound, startMusic, stopMusic, unloadSounds, setSfxEnabled, setMusicEnabled, isSfxEnabled, isMusicEnabled, playClick } from './src/sound';
 import { getOrCreateProfile, setSoundEnabled as setProfileSoundEnabled, setMusicEnabled as setProfileMusicEnabled } from './src/profile';
 import { APP_VERSION } from './src/version';
+
+// Ads loader — only loads native module when available (not in Expo Go)
+function useAds() {
+  const [ads, setAds] = useState<{
+    initAds: () => Promise<void>;
+    maybeShowInterstitial: () => Promise<void>;
+    Banner: React.FC;
+  } | null>(null);
+
+  useEffect(() => {
+    // Check if native GoogleMobileAds module exists
+    const hasNativeAds = !!global.NativeModules?.GoogleMobileAds;
+    if (!hasNativeAds) {
+      // Expo Go or web — provide no-op implementations
+      setAds({
+        initAds: async () => {},
+        maybeShowInterstitial: async () => {},
+        Banner: () => null,
+      });
+      return;
+    }
+
+    // Native build — dynamically import ads module
+    import('./src/ads').then((module) => {
+      setAds({
+        initAds: module.initAds,
+        maybeShowInterstitial: module.maybeShowInterstitial,
+        Banner: module.Banner,
+      });
+    }).catch(() => {
+      // Fallback if import fails
+      setAds({
+        initAds: async () => {},
+        maybeShowInterstitial: async () => {},
+        Banner: () => null,
+      });
+    });
+  }, []);
+
+  return ads ?? {
+    initAds: async () => {},
+    maybeShowInterstitial: async () => {},
+    Banner: () => null,
+  };
+}
 
 type Screen = 'loading' | 'home' | 'play' | 'over' | 'settings' | 'tutorial' | 'leaderboard' | 'profile' | 'auth';
 
@@ -45,6 +89,9 @@ function Root() {
   const [showAuth, setShowAuth] = useState(false);
   const [gameOverCount, setGameOverCount] = useState(0);
   const [showSavePrompt, setShowSavePrompt] = useState(false);
+
+  // Load ads (will be no-op in Expo Go)
+  const { initAds, maybeShowInterstitial, Banner } = useAds();
 
   const handleAuthComplete = async () => {
     setShowAuth(false);
@@ -100,7 +147,7 @@ function Root() {
   // Initialize ads once on app start
   useEffect(() => {
     initAds();
-  }, []);
+  }, [initAds]);
 
   // Initialize sounds once on app start
   useEffect(() => {
