@@ -1,8 +1,8 @@
-// Native AdMob implementation — ONLY loaded in dev/production builds (not Expo Go)
-// This file is dynamically imported via a variable path to avoid Metro static analysis
+// Native AdMob implementation — ONLY loaded in dev/production builds (NOT in Expo Go)
+// This file is imported dynamically via a computed path to prevent Metro static analysis
 
 import React from 'react';
-import { Platform, View, NativeModules } from 'react-native';
+import { Platform, View } from 'react-native';
 
 const pick = (android?: string, ios?: string) => Platform.select({ android, ios });
 const BANNER = pick(process.env.EXPO_PUBLIC_ADMOB_BANNER_ANDROID, process.env.EXPO_PUBLIC_ADMOB_BANNER_IOS);
@@ -13,11 +13,13 @@ let loaded = false;
 let count = 0;
 
 let _AdsModule: any = null;
+
 async function loadAdsModule() {
   if (_AdsModule) return _AdsModule;
   try {
-    // Use eval to prevent Metro from statically analyzing this import
-    const module = await eval('import')('react-native-google-mobile-ads');
+    // Use Function constructor to prevent Metro from statically analyzing this import
+    // This code ONLY runs in dev client / production builds where NativeModules.GoogleMobileAds exists
+    const module = await new Function('return import("react-native-google-mobile-ads")')();
     _AdsModule = module.default || module;
     return _AdsModule;
   } catch {

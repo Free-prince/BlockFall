@@ -1,0 +1,24 @@
+diff --git a/build/file-store.d.ts b/build/file-store.d.ts
+index 8df704a096760e8552c3c1855d76fdb2c2d35edb..0d292ff73a9fff8c277062b598058c7aeb2e9022 100644
+--- a/build/file-store.d.ts
++++ b/build/file-store.d.ts
+@@ -1,5 +1,5 @@
+ /// <reference types="node" />
+-import UpstreamFileStore from 'metro-cache/src/stores/FileStore';
++import { FileStore as UpstreamFileStore } from 'metro-cache';
+ export declare class FileStore<T> extends UpstreamFileStore<T> {
+     set(key: Buffer, value: any): Promise<void>;
+ }
+diff --git a/build/file-store.js b/build/file-store.js
+index 6beb69851f2157cb9ea545e460e7bf1134e58bbb..ba1780cbc4b1616656dafeeabf53a10957428512 100644
+--- a/build/file-store.js
++++ b/build/file-store.js
+@@ -4,7 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
+ };
+ Object.defineProperty(exports, "__esModule", { value: true });
+ exports.FileStore = void 0;
+-const FileStore_1 = __importDefault(require("metro-cache/src/stores/FileStore"));
++const { FileStore: FileStore_1 } = require("metro-cache");
+ const debug = require('debug')('expo:metro:cache');
+ class FileStore extends FileStore_1.default {
+     async set(key, value) {

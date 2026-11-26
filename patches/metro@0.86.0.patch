@@ -1,0 +1,30 @@
+diff --git a/package.json b/package.json
+index b78568e6d0c3e1f6e5fed03edfd9e19b9014157d..0ba79ffccb809c2d12009539c5b113f5cd502a9c 100644
+--- a/package.json
++++ b/package.json
+@@ -7,7 +7,14 @@
+   "exports": {
+     ".": "./src/index.js",
+     "./package.json": "./package.json",
+-    "./private/*": "./src/*.js"
++    "./private/*": "./src/*.js",
++    "./src/*": "./src/*.js",
++    "./src/DeltaBundler/Serializers/*": "./src/DeltaBundler/Serializers/*.js",
++    "./src/lib/*": "./src/lib/*.js",
++    "./src/ModuleGraph/*": "./src/ModuleGraph/*.js",
++    "./src/ModuleGraph/worker/*": "./src/ModuleGraph/worker/*.js",
++    "./src/IncrementalBundler/*": "./src/IncrementalBundler/*.js",
++    "./src/Bundler/*": "./src/Bundler/*.js"
+   },
+   "repository": {
+     "type": "git",
+diff --git a/src/DeltaBundler/Serializers/sourceMapString.js b/src/DeltaBundler/Serializers/sourceMapString.js
+index 1234567..abcdefg 100644
+--- a/src/DeltaBundler/Serializers/sourceMapString.js
++++ b/src/DeltaBundler/Serializers/sourceMapString.js
+@@ -20,4 +20,5 @@ async function sourceMapStringNonBlocking(modules, options) {
+   return generator.toString(undefined, {
+     excludeSource: options.excludeSource,
+   });
+ }
++exports.default = sourceMapString;

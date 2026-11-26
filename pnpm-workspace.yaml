@@ -1,0 +1,26 @@
+packages:
+  - .
+allowBuilds:
+  '@clerk/shared': true
+  browser-tabs-lock: true
+  bufferutil: true
+  core-js: true
+  utf-8-validate: true
+overrides:
+  metro: 0.86.0
+  metro-cache: 0.86.0
+  metro-config: 0.86.0
+  metro-core: 0.86.0
+  metro-file-map: 0.86.0
+  metro-minify-terser: 0.86.0
+  metro-resolver: 0.86.0
+  metro-runtime: 0.86.0
+  metro-source-map: 0.86.0
+  metro-symbolicate: 0.86.0
+  metro-transform-plugins: 0.86.0
+  metro-transform-worker: 0.86.0
+  metro-babel-transformer: 0.86.0
+patchedDependencies:
+  '@expo/metro-config@0.19.12': patches/@expo__metro-config@0.19.12.patch
+  metro-transform-worker@0.86.0: patches/metro-transform-worker@0.86.0.patch
+  metro@0.86.0: patches/metro@0.86.0.patch

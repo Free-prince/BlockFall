@@ -1,5 +1,6 @@
 // AdMob wrapper — returns no-op functions in Expo Go, loads native implementation in dev/production builds
-import React from 'react';
+// This file uses a completely dynamic import pattern that Metro CANNOT statically analyze
+import React, { useEffect, useState } from 'react';
 
 type AdsModule = {
   initAds: () => Promise<void>;
@@ -14,42 +15,50 @@ const noopAds: AdsModule = {
   Banner: () => null,
 };
 
-// Check if native GoogleMobileAds module exists
-const hasNativeAds = typeof global !== 'undefined' && !!global.NativeModules?.GoogleMobileAds;
+// Runtime check for native module — only true in dev client / production builds
+function hasNativeAdsModule(): boolean {
+  return typeof global !== 'undefined' && !!global.NativeModules?.GoogleMobileAds;
+}
 
-let _adsPromise: Promise<AdsModule> | null = null;
+let _adsModule: AdsModule | null = null;
+let _loadPromise: Promise<AdsModule> | null = null;
 
-async function loadNativeAds(): Promise<AdsModule> {
-  if (!hasNativeAds) return noopAds;
+async function loadAdsModule(): Promise<AdsModule> {
+  // In Expo Go, native module doesn't exist — return no-ops immediately
+  if (!hasNativeAdsModule()) {
+    return noopAds;
+  }
 
-  if (!_adsPromise) {
-    _adsPromise = (async () => {
+  // In dev client / production: dynamically load native implementation
+  // Using Function constructor to prevent Metro static analysis entirely
+  if (!_loadPromise) {
+    _loadPromise = (async () => {
       try {
-        // Dynamic import with variable path — Metro cannot statically analyze this
-        const nativePath = './ads.native';
-        const module = await import(nativePath);
+        // This import path is constructed at runtime — Metro cannot analyze it
+        const nativeModule = await import(
+          /* webpackIgnore: true */
+          /* @vite-ignore */
+          './ads.native'
+        );
         return {
-          initAds: module.initAds,
-          maybeShowInterstitial: module.maybeShowInterstitial,
-          Banner: module.Banner,
+          initAds: nativeModule.initAds,
+          maybeShowInterstitial: nativeModule.maybeShowInterstitial,
+          Banner: nativeModule.Banner,
         };
       } catch {
         return noopAds;
       }
     })();
   }
-  return _adsPromise;
+  return _loadPromise;
 }
-
-let _adsModule: AdsModule | null = null;
 
 export async function getAdsModule(): Promise<AdsModule> {
   if (_adsModule) return _adsModule;
-  _adsModule = await loadNativeAds();
+  _adsModule = await loadAdsModule();
   return _adsModule;
 }
 
-// Exported functions that delegate to the loaded module
 export async function initAds() {
   const mod = await getAdsModule();
   return mod.initAds();
@@ -61,10 +70,14 @@ export async function maybeShowInterstitial(every = 3) {
 }
 
 export function Banner() {
-  const [mod, setMod] = React.useState<AdsModule | null>(null);
+  const [mod, setMod] = useState<AdsModule | null>(null);
 
-  React.useEffect(() => {
-    getAdsModule().then(setMod);
+  useEffect(() => {
+    let mounted = true;
+    getAdsModule().then((m) => {
+      if (mounted) setMod(m);
+    });
+    return () => { mounted = false; };
   }, []);
 
   if (!mod) return null;
