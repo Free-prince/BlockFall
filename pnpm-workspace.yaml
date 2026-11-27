@@ -23,4 +23,3 @@ overrides:
 patchedDependencies:
   '@expo/metro-config@0.19.12': patches/@expo__metro-config@0.19.12.patch
   metro-transform-worker@0.86.0: patches/metro-transform-worker@0.86.0.patch
-  metro@0.86.0: patches/metro@0.86.0.patch

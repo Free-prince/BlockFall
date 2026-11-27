@@ -1,30 +1,53 @@
-diff --git a/package.json b/package.json
-index b78568e6d0c3e1f6e5fed03edfd9e19b9014157d..0ba79ffccb809c2d12009539c5b113f5cd502a9c 100644
---- a/package.json
-+++ b/package.json
-@@ -7,7 +7,14 @@
-   "exports": {
-     ".": "./src/index.js",
-     "./package.json": "./package.json",
--    "./private/*": "./src/*.js"
-+    "./private/*": "./src/*.js",
-+    "./src/*": "./src/*.js",
-+    "./src/DeltaBundler/Serializers/*": "./src/DeltaBundler/Serializers/*.js",
-+    "./src/lib/*": "./src/lib/*.js",
-+    "./src/ModuleGraph/*": "./src/ModuleGraph/*.js",
-+    "./src/ModuleGraph/worker/*": "./src/ModuleGraph/worker/*.js",
-+    "./src/IncrementalBundler/*": "./src/IncrementalBundler/*.js",
-+    "./src/Bundler/*": "./src/Bundler/*.js"
-   },
-   "repository": {
-     "type": "git",
 diff --git a/src/DeltaBundler/Serializers/sourceMapString.js b/src/DeltaBundler/Serializers/sourceMapString.js
 index 1234567..abcdefg 100644
 --- a/src/DeltaBundler/Serializers/sourceMapString.js
 +++ b/src/DeltaBundler/Serializers/sourceMapString.js
-@@ -20,4 +20,5 @@ async function sourceMapStringNonBlocking(modules, options) {
+@@ -17,7 +17,8 @@ var _sourceMapGenerator = require("./sourceMapGenerator");
+ function sourceMapString(modules, options) {
+   return (0, _sourceMapGenerator.sourceMapGenerator)(modules, options).toString(
+     undefined,
+     {
+       excludeSource: options.excludeSource,
+     },
+   );
+ }
+ async function sourceMapStringNonBlocking(modules, options) {
+   const generator = await (0,
+   _sourceMapGenerator.sourceMapGeneratorNonBlocking)(modules, options);
    return generator.toString(undefined, {
      excludeSource: options.excludeSource,
    });
  }
 +exports.default = sourceMapString;
+diff --git a/src/index.flow.js b/src/index.flow.js
+index 1234567..abcdefg 100644
+--- a/src/index.flow.js
++++ b/src/index.flow.js
+@@ -443,6 +443,18 @@ const attachMetroCli = function (yargs, options = {}) {
+   return yargs;
+ };
+ exports.attachMetroCli = attachMetroCli;
++// Add default export for compatibility with @expo/cli which uses require("metro").default
++const indexExports = {
++  createConnectMiddleware,
++  runMetro,
++  loadConfig,
++  mergeConfig,
++  resolveConfig,
++  runBuild,
++  runServer,
++  buildGraph,
++  attachMetroCli,
++  JsonReporter: require("./lib/JsonReporter").default,
++  TerminalReporter: require("./lib/TerminalReporter").default,
++  Terminal: require("metro-core").Terminal,
++  IncrementalBundler: require("./IncrementalBundler").default,
++  HmrServer: require("./HmrServer").default,
++  Server: require("./Server").default,
++  sourceMapString: require("./DeltaBundler/Serializers/sourceMapString").default,
++  sourceMapStringNonBlocking: require("./DeltaBundler/Serializers/sourceMapString").sourceMapStringNonBlocking,
++  outputBundle: require("./shared/output/bundle"),
++};
++exports.default = indexExports;
+ async function earlyPortCheck(host, port) {
+   const server = _net.default.createServer((c) => c.end());
